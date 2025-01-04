@@ -18,8 +18,7 @@ class BookListScreen extends StatelessWidget {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-                builder: (context) => const BookRegistrationScreen()),
+            MaterialPageRoute(builder: (context) => const RegistrationScreen()),
           );
         },
         child: const Icon(Icons.add), // ボタンのアイコン
