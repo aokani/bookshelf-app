@@ -1,73 +1,160 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart'; // api_service.dartをインポート
+import '../services/api_service.dart';
+import '../book.dart';
+import 'package:marquee/marquee.dart';
 
 class RegistrationScreen extends StatefulWidget {
-  const RegistrationScreen({super.key});
+  const RegistrationScreen({Key? key}) : super(key: key);
 
   @override
   State<RegistrationScreen> createState() => _RegistrationScreenState();
 }
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _searchResults = []; // 型をdynamicに変更
+  String searchText = '';
+  List<Book> searchResults = [];
+  List<Book> registeredBooks = [];
+  bool _isLoading = false; // ローディング状態の管理
 
   Future<void> _searchBooks() async {
-    final title = _searchController.text;
-    if (title.isNotEmpty) {
-      final results = await ApiService.searchBooksByTitle(title);
-      setState(() {
-        _searchResults = results;
-      });
-    }
+    if (searchText.isEmpty) return;
+
+    setState(() {
+      _isLoading = true; // ローディング開始
+    });
+
+    final results = await ApiService.searchBooksByTitle(searchText);
+    setState(() {
+      searchResults = results.map((data) => Book.fromApiData(data)).toList();
+      _isLoading = false; // ローディング終了
+    });
+  }
+
+  void _registerBooks() {
+    setState(() {
+      for (final book in searchResults) {
+        if (book.isSelected && !registeredBooks.any((b) => b.title == book.title)) {
+          registeredBooks.add(book);
+        }
+      }
+
+      //登録後に選択状態をリセット
+      for (final book in searchResults) {
+        book.isSelected = false;
+      }
+
+      print(registeredBooks);
+
+      Navigator.pop(context, registeredBooks);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('書籍検索'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: 'タイトルを入力',
-              ),
-            ),
-            ElevatedButton(
-              onPressed: _searchBooks,
-              child: const Text('検索'),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _searchResults.length,
-                itemBuilder: (context, index) {
-                  final item = _searchResults[index];
-                  return Card(
-                    child: ListTile(
-                      title: Text(item['title'] ?? 'タイトル不明'),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('著者: ${item['author'] ?? '著者不明'}'), // creatorからauthorに変更
-                          Text('出版社: ${item['publisher'] ?? '出版社不明'}'),
-                          // filteringDataを表示しない
-                          //Text('発行日: ${item['filteringData']['issued'] ?? '発行日不明'}'),
-                          //Text('ジャンル: ${item['filteringData']['genre'] ?? 'ジャンル不明'}'),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+        title: TextField(
+          onChanged: (text) => setState(() => searchText = text),
+          decoration: const InputDecoration(hintText: '検索キーワードを入力'),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _searchBooks,
+          ),
+        ],
       ),
+      body: _isLoading // ローディング中はプログレスインジケーターを表示
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: searchResults.length,
+                    itemBuilder: (context, index) {
+                      final book = searchResults[index];
+                      return InkWell(
+                        onTap: () {
+                          setState(() {
+                            book.isSelected = !book.isSelected;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(16.0),
+                          color: book.isSelected ? Colors.blue[100] : null,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 自動スクロール部分
+                              LayoutBuilder(
+                                // 幅を取得するためにLayoutBuilderでラップ
+                                builder: (context, constraints) {
+                                  if (book.title.length * 16 > constraints.maxWidth) {
+                                    // 文字列の幅がmaxWidthを超えている場合のみスクロール
+                                    return SizedBox(
+                                      height: 20, // 行の高さ
+                                      child: Marquee(
+                                        text: book.title,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                        scrollAxis: Axis.horizontal,
+                                        blankSpace: 20.0,
+                                        velocity: 50.0, // スクロール速度
+                                        pauseAfterRound: const Duration(seconds: 1), // 停止時間
+                                        startPadding: 10.0,
+                                      ),
+                                    );
+                                  } else {
+                                    return Text(
+                                      // 短い場合はそのまま表示
+                                      book.title,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                    );
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 8), // タイトルと情報部分の間にスペース
+                              Row(
+                                // 出版社と著者を横に配置
+                                children: [
+                                  Expanded(
+                                    // 出版社を左寄せ
+                                    child: Align(
+                                      alignment: Alignment.bottomLeft,
+                                      child: Text(
+                                        book.publisher,
+                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    // 著者を右寄せ
+                                    child: Align(
+                                      alignment: Alignment.bottomRight,
+                                      child: Text(
+                                        book.author,
+                                        textAlign: TextAlign.end,
+                                        maxLines: 2, // 必要に応じて変更
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: searchResults.isEmpty ? null : _registerBooks, //検索結果がない場合はボタンを無効化
+                  child: const Text('登録'),
+                ),
+              ],
+            ),
     );
   }
 }

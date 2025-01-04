@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class BookDetailScreen extends StatelessWidget {
-  const BookDetailScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic> book; // bookパラメータを定義
+  const BookDetailScreen({Key? key, required this.book}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
