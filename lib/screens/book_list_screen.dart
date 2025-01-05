@@ -1,82 +1,63 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import 'book_detail_screen.dart';
-import 'book_registration_screen.dart';
 import 'package:provider/provider.dart';
+import '../models/book_list_model.dart';
+import '../screens/book_detail_screen.dart';
+import '../screens/book_registration_screen.dart';
+import '../book.dart';
 
-class BookListScreen extends StatefulWidget {
+class BookListScreen extends StatelessWidget {
   const BookListScreen({Key? key}) : super(key: key);
-
-  @override
-  State<BookListScreen> createState() => _BookListScreenState();
-}
-
-class _BookListScreenState extends State<BookListScreen> {
-  List<Map<String, dynamic>> _books = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchBooks();
-  }
-
-  Future<void> _fetchBooks() async {
-    try {
-      final books = await ApiService.searchBooksByTitle(''); // 全書籍を取得するようなメソッドに変更するか、適切な引数を渡す
-      setState(() {
-        _books = books;
-        _isLoading = false;
-      });
-    } catch (e) {
-      // エラー処理
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('書籍情報の取得に失敗しました: $e')),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('書籍リスト'),
+        title: const Text('所持書籍リスト'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: _books.length,
-              itemBuilder: (context, index) {
-                final book = _books[index];
-                return Card(
-                  child: ListTile(
-                    title: Text(book['title']),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => BookDetailScreen(book: book), // 書籍データを渡す
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
+      body: Consumer<BookListModel>(
+        // ConsumerでBookListModelを監視
+        builder: (context, bookList, _) {
+          if (bookList.ownedBooks.isEmpty) {
+            return const Center(child: Text('書籍が登録されていません'));
+          }
+          return ListView.builder(
+            itemCount: bookList.ownedBooks.length,
+            itemBuilder: (context, index) {
+              final book = bookList.ownedBooks[index];
+              return Dismissible(
+                key: Key(book.title + book.author + book.publisher),
+                onDismissed: (direction) {
+                  Provider.of<BookListModel>(context, listen: false).removeBook(book);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${book.title}を削除しました")));
+                },
+                background: Container(color: Colors.red),
+                child: ListTile(
+                  title: Text(book.title),
+                  subtitle: Text('${book.author} - ${book.publisher}'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BookDetailScreen(book: book), // bookオブジェクトを直接渡す
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
       floatingActionButton: FloatingActionButton(
-        // FABを追加
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final registeredBooks = await Navigator.push<List<Book>>(
             context,
             MaterialPageRoute(
-              builder: (context) => const RegistrationScreen(), // RegistrationScreenへ遷移
+              builder: (context) => const RegistrationScreen(),
             ),
           );
         },
-        child: const Icon(Icons.add), // FABのアイコン
+        child: const Icon(Icons.add),
       ),
     );
   }

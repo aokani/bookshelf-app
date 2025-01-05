@@ -1,26 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:logging/logging.dart';
-import 'screens/book_list_screen.dart'; // リスト画面のimport
+import 'package:provider/provider.dart';
+import 'models/book_list_model.dart';
+import 'screens/book_list_screen.dart';
 
 void main() {
-  Logger.root.level = Level.ALL; // 全てのログレベルを有効にする（本番環境では調整が必要）
-  Logger.root.onRecord.listen((record) {
-    print('${record.time}: ${record.level.name}: ${record.loggerName}: ${record.message}');
-  });
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => BookListModel()), // BookListModelを提供
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'My Bookshelf App',
+      title: 'Book Management App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const BookListScreen(), // 最初に表示する画面を指定
+      home: const BookListScreen(), // 初期画面
     );
   }
 }

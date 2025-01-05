@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../models/book_list_model.dart';
 import '../services/api_service.dart';
 import '../book.dart';
 import 'package:marquee/marquee.dart';
+import 'package:provider/provider.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({Key? key}) : super(key: key);
@@ -150,7 +152,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: searchResults.isEmpty ? null : _registerBooks, //検索結果がない場合はボタンを無効化
+                  onPressed: searchResults.isEmpty
+                      ? null
+                      : () {
+                          for (final book in searchResults) {
+                            if (book.isSelected) {
+                              Provider.of<BookListModel>(context, listen: false).addBook(book);
+                            }
+                          }
+                          Navigator.pop(context); // 画面を閉じる
+                        },
                   child: const Text('登録'),
                 ),
               ],
